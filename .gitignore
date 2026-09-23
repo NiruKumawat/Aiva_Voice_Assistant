@@ -1,0 +1,46 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environments
+venv/
+.venv/
+env/
+ENV/
+
+# Environment Variables & Secrets (CRITICAL)
+.env
+.env.*
+!.env.example
+*.local
+
+# Application 
+*.log
+app.log
+
+# Temporary / Local Screen Captures & Test Artifacts
+current_desktop.png
+band_*.png
+test_crop_*.png
+temp_*.wav
+temp_*.mp3
+
+# Operating System Files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# IDE & Editor Settings
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+
+# Pytest / Coverage / Test Caches
+.pytest_cache/
+.coverage
+htmlcov/
