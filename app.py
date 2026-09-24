@@ -9,7 +9,7 @@ from PySide6.QtWidgets import QApplication
 from PySide6.QtMultimedia import QMediaPlayer, QAudioOutput
 from PySide6.QtCore import QUrl, Signal, QObject
 
-from config import HOTKEY, HOTKEY_VISION, ENABLE_COMPUTER_CONTROL, EMERGENCY_STOP_KEY, AUTO_VISION_VOICE, ENABLE_CONTINUOUS_SCREEN_WATCHER
+from config import HOTKEY, HOTKEY_VISION, ENABLE_COMPUTER_CONTROL, EMERGENCY_STOP_KEY, AUTO_VISION_VOICE, ENABLE_CONTINUOUS_SCREEN_WATCHER, HIDE_ORB_FROM_SCREEN_CAPTURE
 from utils.logger import logger
 from capture.screen import capture_screen
 from capture.watcher import ScreenWatcher
@@ -42,19 +42,21 @@ class VoiceAssistantApp:
         self.tts_player = TTSPlayer()
         self.recorder = AudioRecorder()
 
-        # Exclude assistant window from ALL screen capture APIs (mss, BitBlt, etc.)
-        # so it never appears in screenshots sent to the Vision AI.
-        # WDA_EXCLUDEFROMCAPTURE (0x11) requires Windows 10 2004+
+        # Optionally exclude assistant window from screen capture APIs
+        # Default is False so screen recording tools (like Loom / OBS) capture the HUD during demos.
         self._window_hwnd = int(self.window.winId())
-        try:
-            WDA_EXCLUDEFROMCAPTURE = 0x00000011
-            result = ctypes.windll.user32.SetWindowDisplayAffinity(self._window_hwnd, WDA_EXCLUDEFROMCAPTURE)
-            if result:
-                logger.info(f"Window HWND {self._window_hwnd} excluded from screen capture via SetWindowDisplayAffinity")
-            else:
-                logger.warning("SetWindowDisplayAffinity failed — assistant window will appear in screenshots")
-        except Exception as e:
-            logger.warning(f"Could not set display affinity: {e}")
+        if HIDE_ORB_FROM_SCREEN_CAPTURE:
+            try:
+                WDA_EXCLUDEFROMCAPTURE = 0x00000011
+                result = ctypes.windll.user32.SetWindowDisplayAffinity(self._window_hwnd, WDA_EXCLUDEFROMCAPTURE)
+                if result:
+                    logger.info(f"Window HWND {self._window_hwnd} excluded from screen capture via SetWindowDisplayAffinity")
+                else:
+                    logger.warning("SetWindowDisplayAffinity failed")
+            except Exception as e:
+                logger.warning(f"Could not set display affinity: {e}")
+        else:
+            logger.info("Orb display capture affinity is enabled (visible in Loom / screen recording)")
 
         # V2 Computer Control Agent Loop
         self.agent_loop = AgentLoop(

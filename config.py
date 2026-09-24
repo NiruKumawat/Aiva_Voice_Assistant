@@ -22,6 +22,7 @@ MAX_IMAGE_SIZE = (1920, 1080)  # Preserves native resolution up to 1080p without
 ENABLE_CONTINUOUS_SCREEN_WATCHER = os.getenv("ENABLE_CONTINUOUS_SCREEN_WATCHER", "true").lower() == "true"
 SCREEN_WATCHER_INTERVAL = float(os.getenv("SCREEN_WATCHER_INTERVAL", "1.5"))  # Seconds between change checks (<0.2% CPU)
 AUTO_VISION_VOICE = os.getenv("AUTO_VISION_VOICE", "true").lower() == "true"  # Automatically use live screen buffer on voice
+HIDE_ORB_FROM_SCREEN_CAPTURE = os.getenv("HIDE_ORB_FROM_SCREEN_CAPTURE", "false").lower() == "true"
 
 # Hotkeys
 HOTKEY = "ctrl+space"  # Voice command (uses live screen automatically when AUTO_VISION_VOICE is true)

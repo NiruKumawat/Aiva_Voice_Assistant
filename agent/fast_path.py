@@ -19,6 +19,8 @@ class DirectActionFastPath:
 
     # Stop words / fillers stripped from beginning of sentence
     PREFIX_FILLERS = [
+        r"^listening\s*[\.\,\:\-]*\s+",
+        r"^listen\s*[\.\,\:\-]*\s+",
         r"^can you please\s+",
         r"^could you please\s+",
         r"^would you please\s+",
@@ -33,6 +35,7 @@ class DirectActionFastPath:
         r"^please\s+",
         r"^kindly\s+",
         r"^hey assistant\s+",
+        r"^assistant\s+",
         r"^hey\s+",
         r"^just\s+",
         r"^now\s+",
