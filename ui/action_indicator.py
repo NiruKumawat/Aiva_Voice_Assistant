@@ -156,6 +156,10 @@ def init_action_indicator() -> Optional[ActionIndicatorWidget]:
     return _global_indicator
 
 
+# Backwards compatibility alias
+get_action_indicator = init_action_indicator
+
+
 def show_click_indicator(x: int, y: int, color_theme: str = "cyan"):
     """
     Thread-safe click indicator dispatcher.

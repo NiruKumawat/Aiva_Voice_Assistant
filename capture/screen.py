@@ -59,10 +59,15 @@ class ScreenCaptureData:
 
         if mode == "vision":
             # Isotropic: longest dimension of the capture area maps to 1000.
-            # Both X and Y share the same scale factor.
             longest_dim = max(w, h)
-            abs_x = left + int((fx / 1000.0) * longest_dim)
-            abs_y = top + int((fy / 1000.0) * longest_dim)
+            max_iso_y = (1000.0 * h / longest_dim) if longest_dim > 0 else 1000
+            # If fy exceeds isotropic max_y + 20, the AI outputted standard 0-1000 coordinates (1000=bottom)
+            if fy > (max_iso_y + 20):
+                abs_x = left + int((fx / 1000.0) * w)
+                abs_y = top + int((fy / 1000.0) * h)
+            else:
+                abs_x = left + int((fx / 1000.0) * longest_dim)
+                abs_y = top + int((fy / 1000.0) * longest_dim)
         else:
             # Standard: independent 0-1000 for width and height
             abs_x = left + int((fx / 1000.0) * w)

@@ -73,6 +73,12 @@ class DirectActionFastPath:
         cleaned = re.sub(r"(?<!\w)\.|\.(?!\w)", " ", cleaned)
         cleaned = re.sub(r"\s+", " ", cleaned).strip()
 
+        # Phonetic cleanups for common desktop voice commands
+        cleaned = re.sub(r"\bnot\s*paid\b", "notepad", cleaned)
+        cleaned = re.sub(r"\bnot\s*prid\b", "notepad", cleaned)
+        cleaned = re.sub(r"\bnew\s*pile\b", "new file", cleaned)
+        cleaned = re.sub(r"\btake\s*a\s*new\s*pile\b", "take a new file", cleaned)
+
         # Iteratively strip polite prefixes
         changed = True
         while changed:
@@ -112,6 +118,8 @@ class DirectActionFastPath:
             if vk in ["open", "launch"]:
                 if re.search(r"\b(open|launch)\s+(a\s+)?(new\s+)?tab\b", raw_lower):
                     continue  # Allow direct hotkey "open a new tab" (Ctrl+T)
+                if re.search(r"\b(open|launch|create|make|take)?\s*(a\s+)?new\s+(file|document|doc|note|pile)\b", raw_lower):
+                    continue  # Allow direct hotkey "create a new file" (Ctrl+N)
                 if re.search(r"\b(open|launch)\s+(the\s+)?(file\s*manager|file\s*explorer|pile\s*explorer|explorer|my\s*computer|files)\b", raw_lower):
                     continue  # Allow direct Windows hotkey Win+E
                 if re.search(r"\b(open|launch|start|go\s*to)\b", raw_lower) and not any(k in raw_lower for k in ["search", "find", "click", "look", "type", "play", "video", "menu", "dropdown", "link", "icon", "button", "first", "second", "third", "result", "dialog", "drawer"]):
@@ -429,8 +437,50 @@ class DirectActionFastPath:
                 actions=[step]
             )
 
-        # --- HOTKEYS: SELECT ALL ---
-        if re.match(r"^(select\s*all|select\s*everything)$", cmd):
+        # --- HOTKEYS: NEW FILE / DOCUMENT (Ctrl+N) ---
+        if re.search(r"^(create|open|take|make|start)?\s*(a\s+)?new\s+(file|document|doc|note|pile)(\s+in\s+[a-zA-Z0-9\s]+)?$", cmd):
+            step = ActionStep(
+                action=ActionType.HOTKEY,
+                keys=["ctrl", "n"],
+                reason="Fast-path create new file (Ctrl+N)"
+            )
+            return ActionPlan(
+                type="action",
+                thought="Fast-path direct New File hotkey",
+                answer="Created a new file.",
+                actions=[step]
+            )
+
+        # --- HOTKEYS: CLEAR ALL / BLANK FILE (Ctrl+A -> Delete) ---
+        if re.search(r"^(clear|blank|empty|wipe|erase)\s+(?:(?:all|the|this|complete|entire|current)\s*)*(?:file|document|doc|text|content|notepad)?(\s*text)?(\s*from\s*.*)?$", cmd):
+            steps = [
+                ActionStep(action=ActionType.HOTKEY, keys=["ctrl", "a"], reason="Select all (Ctrl+A)"),
+                ActionStep(action=ActionType.WAIT, duration=0.05, reason="Wait for selection"),
+                ActionStep(action=ActionType.PRESS_KEY, keys=["delete"], reason="Delete selected text")
+            ]
+            return ActionPlan(
+                type="action",
+                thought="Fast-path clear all text in active document",
+                answer="Cleared all text.",
+                actions=steps
+            )
+
+        # --- HOTKEYS: COPY ALL TEXT / WEBPAGE (Ctrl+A -> Ctrl+C) ---
+        if re.search(r"^copy\s+(?:all|complete|entire|whole|the\s+complete|this\s+complete)?\s*(?:text|content)?(\s*from\s*.*)?$", cmd):
+            steps = [
+                ActionStep(action=ActionType.HOTKEY, keys=["ctrl", "a"], reason="Select all (Ctrl+A)"),
+                ActionStep(action=ActionType.WAIT, duration=0.05, reason="Wait for selection"),
+                ActionStep(action=ActionType.HOTKEY, keys=["ctrl", "c"], reason="Copy to clipboard (Ctrl+C)")
+            ]
+            return ActionPlan(
+                type="action",
+                thought="Fast-path copy all text to clipboard",
+                answer="Copied all text to clipboard.",
+                actions=steps
+            )
+
+        # --- HOTKEYS: SELECT ALL (Ctrl+A) ---
+        if re.search(r"^(select|highlight)\s*(?:all|everything|complete|entire|whole|the\s+current|the\s+complete)?\s*(?:text|content)?(\s*from\s*.*)?$", cmd):
             step = ActionStep(
                 action=ActionType.HOTKEY,
                 keys=["ctrl", "a"],
@@ -439,7 +489,21 @@ class DirectActionFastPath:
             return ActionPlan(
                 type="action",
                 thought="Fast-path direct Select All hotkey",
-                answer="Selected all.",
+                answer="Selected all text.",
+                actions=[step]
+            )
+
+        # --- HOTKEYS: SAVE FILE (Ctrl+S) ---
+        if re.search(r"^save\s*(the|this)?\s*(file|document|doc|changes|page)?$", cmd):
+            step = ActionStep(
+                action=ActionType.HOTKEY,
+                keys=["ctrl", "s"],
+                reason="Fast-path save file (Ctrl+S)"
+            )
+            return ActionPlan(
+                type="action",
+                thought="Fast-path direct Save file hotkey",
+                answer="Saved.",
                 actions=[step]
             )
 
@@ -686,14 +750,14 @@ class DirectActionFastPath:
             else:
                 target = raw_target
 
-            # Visual nouns indicating screen interaction rather than external app launch
+            # Visual nouns and compound phrasing indicating screen interaction rather than external app launch
             ui_nouns = {
                 "video", "menu", "link", "icon", "button", "dropdown", "dialog",
                 "first", "second", "third", "result", "sidebar", "panel", "drawer",
-                "checkbox", "item", "option"
+                "checkbox", "item", "option", "task", "step", "press", "while", "and", "then"
             }
             target_tokens = set(re.findall(r"\b\w+\b", target))
-            if not (target_tokens & ui_nouns):
+            if not (target_tokens & ui_nouns) and len(target.split()) <= 4:
                 web_tlds = [".com", ".org", ".net", ".io", ".ai", ".co", ".gov", ".edu", ".app", ".dev", ".in", ".us", ".uk", ".de"]
                 is_explicit_url = target.startswith("http://") or target.startswith("https://") or target.startswith("www.") or any(tld in target for tld in web_tlds)
 

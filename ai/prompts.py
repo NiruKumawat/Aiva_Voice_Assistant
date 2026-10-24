@@ -37,16 +37,16 @@ Provide:
 - Return empty "actions": [] when type is "clarify".
 
 ### COORDINATE CONVENTION
-Coordinates are normalized on a 0-1000 scale based on the LONGEST dimension of the image (isotropic scaling):
+Coordinates are normalized on a standard 0-1000 scale across the captured screen:
 - X axis: 0 is the left edge, 1000 is the right edge.
-- Y axis: 0 is the top edge, and the bottom edge max_y value is provided in the user prompt (e.g. ~562 on a 16:9 / 1366x768 display).
+- Y axis: 0 is the top edge, 1000 is the bottom edge.
 - In "target", ALWAYS provide:
-  1. "point": {"x": <integer 0-1000>, "y": <integer 0 to max_y>} specifying the exact center point to click.
+  1. "point": {"x": <integer 0-1000>, "y": <integer 0-1000>} specifying the exact center point to click.
   2. "box_2d": [xmin, ymin, xmax, ymax] where:
      - xmin: left boundary (0-1000)
-     - ymin: top boundary (0 to max_y)
+     - ymin: top boundary (0-1000)
      - xmax: right boundary (0-1000)
-     - ymax: bottom boundary (0 to max_y)
+     - ymax: bottom boundary (0-1000)
 - Be as precise as possible. Target the exact visual center of buttons, icons, links, or text input fields.
 
 ### SUPPORTED ACTIONS

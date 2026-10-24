@@ -33,7 +33,11 @@ def _get_uia_client():
         import pythoncom
         pythoncom.CoInitialize()
         import comtypes.client
-        from comtypes.gen.UIAutomationClient import CUIAutomation, IUIAutomation
+        try:
+            from comtypes.gen.UIAutomationClient import CUIAutomation, IUIAutomation
+        except Exception:
+            comtypes.client.GetModule("UIAutomationCore.dll")
+            from comtypes.gen.UIAutomationClient import CUIAutomation, IUIAutomation
         _UIA_CLIENT = comtypes.client.CreateObject(CUIAutomation, interface=IUIAutomation)
         logger.info("UniversalGrounder -> Windows UIAutomation client initialized successfully.")
     except Exception as e:
@@ -145,7 +149,10 @@ class UniversalTargetGrounder:
 
                     if ref_x is not None and ref_y is not None:
                         dist = math.hypot(cx - ref_x, cy - ref_y)
-                        if dist > max_distance:
+                        # For exact or high-confidence name matches, allow broader snap radius (up to 300px)
+                        is_strong_match = (clean_target == clean_name or clean_target in clean_name or clean_name in clean_target)
+                        allowed_distance = 300.0 if is_strong_match else max_distance
+                        if dist > allowed_distance:
                             # Too far from where the Vision AI saw it (e.g. toolbar vs page body)
                             continue
 

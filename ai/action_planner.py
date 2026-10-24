@@ -47,7 +47,7 @@ class ActionPlanner:
         prompt_text = (
             f"Active window: {screen_data.window_title}\n"
             f"Screen Resolution: {w}x{h} px\n"
-            f"Coordinate System: Normalized [0, 1000] scale based on width (X: 0=left, 1000=right; Y: 0=top, {max_y}=bottom edge of screen).\n"
+            f"Coordinate System: Standard normalized [0, 1000] scale for both width and height (X: 0=left, 1000=right; Y: 0=top, 1000=bottom edge of the captured window).\n"
             f"{history_context}\n"
             f"User instruction: {user_instruction}\n\n"
             "REMINDER: You MUST return a single JSON object. Do not include any conversational prose outside the JSON."

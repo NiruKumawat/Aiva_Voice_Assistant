@@ -15,7 +15,7 @@ import time
 import webbrowser
 from PySide6.QtWidgets import QApplication
 from computer.controller import ComputerController
-from ui.action_indicator import get_action_indicator, show_click_indicator
+from ui.action_indicator import init_action_indicator, show_click_indicator
 from utils.logger import logger
 
 
@@ -30,7 +30,7 @@ def run_live_demo():
     if not app:
         app = QApplication([])
 
-    indicator = get_action_indicator()
+    indicator = init_action_indicator()
     controller = ComputerController()
 
     # Step 1: Open YouTube in the user's actual browser
