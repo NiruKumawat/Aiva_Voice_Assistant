@@ -36,15 +36,13 @@ class ScreenCaptureData:
 
     def map_normalized_coords(self, norm_x: float, norm_y: float, mode: str = "standard") -> Tuple[int, int]:
         """
-        Maps normalized coordinates to absolute Windows screen coordinates.
+        Maps normalized coordinates to absolute Windows screen coordinates
+        according to the exact screen / window size.
 
-        In 'vision' mode (default for all AI planner outputs):
-          Uses isotropic scaling where the longest screen dimension maps to 1000.
-          On a 1366x768 landscape display: X ranges [0, 1000], Y ranges [0, ~562].
-          Both X and Y are converted by: abs = left/top + int((norm / 1000.0) * longest_dim)
-
-        In 'standard' mode:
-          Independent 0-1000 normalization for width and height separately.
+        Supports:
+          1. Standard 0-1000 normalized scale (X: 0=left, 1000=right; Y: 0=top, 1000=bottom).
+          2. 0.0 - 1.0 unit float scale.
+          3. Absolute pixel coordinates (> 1000).
         """
         if norm_x is None or norm_y is None:
             return self.bbox.get('left', 0), self.bbox.get('top', 0)
@@ -57,23 +55,22 @@ class ScreenCaptureData:
         fx = float(norm_x)
         fy = float(norm_y)
 
-        if mode == "vision":
-            # Isotropic: longest dimension of the capture area maps to 1000.
-            longest_dim = max(w, h)
-            max_iso_y = (1000.0 * h / longest_dim) if longest_dim > 0 else 1000
-            # If fy exceeds isotropic max_y + 20, the AI outputted standard 0-1000 coordinates (1000=bottom)
-            if fy > (max_iso_y + 20):
-                abs_x = left + int((fx / 1000.0) * w)
-                abs_y = top + int((fy / 1000.0) * h)
-            else:
-                abs_x = left + int((fx / 1000.0) * longest_dim)
-                abs_y = top + int((fy / 1000.0) * longest_dim)
+        # 1. Normalize 0.0 - 1.0 float scale if emitted
+        if 0.0 <= fx <= 1.0 and 0.0 <= fy <= 1.0 and (fx > 0 or fy > 0):
+            fx *= 1000.0
+            fy *= 1000.0
+
+        # 2. Raw pixel coordinates (> 1000)
+        if fx > 1000.0 or fy > 1000.0:
+            abs_x = left + int(fx)
+            abs_y = top + int(fy)
         else:
-            # Standard: independent 0-1000 for width and height
+            # 3. Standard screen-size proportional mapping:
+            # X maps proportionally across width w, Y maps proportionally across height h
             abs_x = left + int((fx / 1000.0) * w)
             abs_y = top + int((fy / 1000.0) * h)
 
-        # Strictly clamp within bounding box
+        # Strictly clamp within bounding box bounds
         abs_x = max(left, min(abs_x, left + w))
         abs_y = max(top, min(abs_y, top + h))
         return abs_x, abs_y

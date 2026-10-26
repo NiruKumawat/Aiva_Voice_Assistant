@@ -42,7 +42,6 @@ class ActionPlanner:
 
         w = screen_data.bbox.get('width', screen_data.scaled_size[0])
         h = screen_data.bbox.get('height', screen_data.scaled_size[1])
-        max_y = int(1000.0 * h / w) if w > 0 else 1000
 
         prompt_text = (
             f"Active window: {screen_data.window_title}\n"
@@ -80,9 +79,9 @@ class ActionPlanner:
                 model=AI_MODEL,
                 messages=messages,
                 temperature=0.1,
-                max_tokens=1024,
+                max_tokens=2048,
                 response_format={"type": "json_object"},
-                timeout=15.0
+                timeout=20.0
             )
 
             raw_text = completion.choices[0].message.content.strip()
@@ -130,7 +129,7 @@ class ActionPlanner:
                     model=AI_MODEL,
                     messages=messages,
                     temperature=0.1,
-                    max_tokens=1024
+                    max_tokens=2048
                 )
                 raw_text = completion.choices[0].message.content.strip()
                 return self._parse_and_map_plan(raw_text, screen_data)
@@ -174,10 +173,10 @@ class ActionPlanner:
                 box_center_x, box_center_y = None, None
 
                 if step.target.box_2d and len(step.target.box_2d) == 4:
-                    box_center_x, box_center_y = screen_data.map_box_center(step.target.box_2d, mode="vision")
+                    box_center_x, box_center_y = screen_data.map_box_center(step.target.box_2d, mode="standard")
 
                 if step.target.norm_x is not None and step.target.norm_y is not None:
-                    pred_x, pred_y = screen_data.map_normalized_coords(step.target.norm_x, step.target.norm_y, mode="vision")
+                    pred_x, pred_y = screen_data.map_normalized_coords(step.target.norm_x, step.target.norm_y, mode="standard")
 
                 # Refine coordinates using UniversalTargetGrounder (UIA exact -> Box Centroid -> Point)
                 final_x, final_y, method = UniversalTargetGrounder.refine_target_coordinates(
@@ -200,10 +199,10 @@ class ActionPlanner:
                 box_center_x, box_center_y = None, None
 
                 if target.box_2d and len(target.box_2d) == 4:
-                    box_center_x, box_center_y = screen_data.map_box_center(target.box_2d, mode="vision")
+                    box_center_x, box_center_y = screen_data.map_box_center(target.box_2d, mode="standard")
 
                 if target.norm_x is not None and target.norm_y is not None:
-                    pred_x, pred_y = screen_data.map_normalized_coords(target.norm_x, target.norm_y, mode="vision")
+                    pred_x, pred_y = screen_data.map_normalized_coords(target.norm_x, target.norm_y, mode="standard")
 
                 final_x, final_y, method = UniversalTargetGrounder.refine_target_coordinates(
                     target_description=opt.get("description") or target.description or "",

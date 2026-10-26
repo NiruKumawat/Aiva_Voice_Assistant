@@ -39,12 +39,12 @@ def run_live_demo():
     time.sleep(4.0)  # Allow browser and page to render
 
     # Step 2: Smooth cursor movement to YouTube search bar and click
-    # On a standard 1366x768 / 1080p display, the YouTube search bar is around (550, 80)
     screen_w = controller.mouse.screen_width
-    search_x = int(screen_w * 0.42)
-    search_y = 80
+    screen_h = controller.mouse.screen_height
+    search_x = int(screen_w * 0.48)
+    search_y = int(screen_h * 0.09)
 
-    print(f"\n[Step 2] Moving cursor to YouTube Search Bar at ({search_x}, {search_y})...")
+    print(f"\n[Step 2] Moving cursor to YouTube Search Bar at ({search_x}, {search_y}) [screen: {screen_w}x{screen_h}]...")
     controller.click(search_x, search_y)
     app.processEvents()
     time.sleep(0.8)
@@ -60,10 +60,9 @@ def run_live_demo():
     controller.press("enter")
     time.sleep(3.5)  # Wait for YouTube search results to load
 
-    # Step 5: Click first video result
-    # Usually located at around (450, 290)
-    video_x = int(screen_w * 0.40)
-    video_y = 310
+    # Step 5: Click first video result scaled to screen resolution
+    video_x = int(screen_w * 0.38)
+    video_y = int(screen_h * 0.30)
     print(f"\n[Step 5] Clicking official video result at ({video_x}, {video_y})...")
     controller.click(video_x, video_y)
     app.processEvents()

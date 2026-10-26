@@ -188,6 +188,42 @@ class TestDirectActionFastPath(unittest.TestCase):
         elapsed = (time.perf_counter() - start) / 100
         self.assertLess(elapsed, 0.001, f"Fast-path matching took {elapsed*1000:.3f}ms (expected <1ms)")
 
+    def test_multistep_open_notepad_and_write_palindrome(self):
+        plan = self.fast_path.match("open notepad take new file and write palindrome code")
+        self.assertIsNotNone(plan)
+        self.assertEqual(plan.type, "action")
+        self.assertIn("Notepad", plan.answer)
+        self.assertIn("palindrome", plan.answer)
+        # Should have 5 steps: LAUNCH, WAIT, HOTKEY, WAIT, TYPE
+        actions = [s.action for s in plan.actions]
+        self.assertEqual(actions, [ActionType.LAUNCH, ActionType.WAIT, ActionType.HOTKEY, ActionType.WAIT, ActionType.TYPE])
+        self.assertEqual(plan.actions[0].text, "notepad")
+        self.assertEqual(plan.actions[2].keys, ["ctrl", "n"])
+        self.assertIn("is_palindrome", plan.actions[4].text)
+
+    def test_multistep_open_notepad_and_write_simple(self):
+        plan = self.fast_path.match("open notepad and write palindrome code")
+        self.assertIsNotNone(plan)
+        actions = [s.action for s in plan.actions]
+        self.assertEqual(actions, [ActionType.LAUNCH, ActionType.WAIT, ActionType.TYPE])
+        self.assertEqual(plan.actions[0].text, "notepad")
+        self.assertIn("is_palindrome", plan.actions[2].text)
+
+    def test_multistep_open_notebook_and_write_something(self):
+        plan = self.fast_path.match("open notebook and write somhing into that")
+        self.assertIsNotNone(plan)
+        actions = [s.action for s in plan.actions]
+        self.assertEqual(actions, [ActionType.LAUNCH, ActionType.WAIT, ActionType.TYPE])
+        self.assertEqual(plan.actions[0].text, "notepad")
+        self.assertIsNotNone(plan.actions[2].text)
+
+    def test_multistep_direct_write_palindrome(self):
+        plan = self.fast_path.match("write palindrome code")
+        self.assertIsNotNone(plan)
+        self.assertEqual(len(plan.actions), 1)
+        self.assertEqual(plan.actions[0].action, ActionType.TYPE)
+        self.assertIn("is_palindrome", plan.actions[0].text)
+
     @patch("agent.loop.ENABLE_FAST_PATH", True)
     @patch("agent.loop.ENABLE_COMPUTER_CONTROL", True)
     def test_agent_loop_fast_path_integration(self):

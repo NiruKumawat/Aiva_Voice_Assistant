@@ -78,9 +78,9 @@ def run_visual_live_tests():
     update_hud(1, TOTAL, "YOUTUBE LOADED", "Browser is ready. Preparing search...", delay_sec=2.0)
 
     # --- STEP 2: GLIDE CURSOR TO SEARCH BAR ---
-    # YouTube search bar is horizontally centered around ~45-52% width and top ~70-80px
+    # YouTube search bar is horizontally centered around ~45-52% width and top ~8-10% height
     search_x = int(screen_w * 0.48)
-    search_y = 75
+    search_y = int(screen_h * 0.09)
 
     update_hud(2, TOTAL, "FINDING SEARCH BAR", f"Gliding mouse cursor to ({search_x}, {search_y})...", delay_sec=0.5)
     
@@ -110,9 +110,9 @@ def run_visual_live_tests():
     bring_browser_to_front()
 
     # --- STEP 5: CLICK FIRST OFFICIAL VIDEO ---
-    # On search results, the first video thumbnail is around 38-42% width and ~300-340px vertically
-    video_x = int(screen_w * 0.42)
-    video_y = 310
+    # Scaled to screen resolution: ~38% width and ~30% height
+    video_x = int(screen_w * 0.38)
+    video_y = int(screen_h * 0.30)
 
     update_hud(5, TOTAL, "SELECTING VIDEO", f"Gliding cursor to official video at ({video_x}, {video_y})...", delay_sec=0.5)
     controller.mouse.move(video_x, video_y, duration=0.7)

@@ -65,6 +65,180 @@ class DirectActionFastPath:
         "tell me", "summarize", "describe", "who", "why", "how"
     }
 
+    # Built-in code and text templates for instant typing
+    PALINDROME_CODE = (
+        "def is_palindrome(s):\n"
+        "    # Check if a string is a palindrome\n"
+        "    cleaned = ''.join(c.lower() for c in str(s) if c.isalnum())\n"
+        "    return cleaned == cleaned[::-1]\n\n"
+        "# Test cases\n"
+        "test_cases = ['radar', 'level', 'Python', 'A man, a plan, a canal: Panama']\n"
+        "for text in test_cases:\n"
+        "    print(f\"{text!r:35} -> {is_palindrome(text)}\")\n"
+    )
+
+    HELLO_WORLD_CODE = (
+        "def main():\n"
+        "    print(\"Hello, World!\")\n\n"
+        "if __name__ == '__main__':\n"
+        "    main()\n"
+    )
+
+    FIBONACCI_CODE = (
+        "def fibonacci(n):\n"
+        "    # Return first n Fibonacci numbers\n"
+        "    series = [0, 1]\n"
+        "    while len(series) < n:\n"
+        "        series.append(series[-1] + series[-2])\n"
+        "    return series[:n]\n\n"
+        "print('Fibonacci series (first 10):', fibonacci(10))\n"
+    )
+
+    FACTORIAL_CODE = (
+        "def factorial(n):\n"
+        "    # Compute factorial recursively\n"
+        "    return 1 if n <= 1 else n * factorial(n - 1)\n\n"
+        "print('Factorial of 5:', factorial(5))\n"
+    )
+
+    SAMPLE_NOTE = (
+        "# Notes\n"
+        "AIVA Voice Assistant Workspace\n"
+        "Ready for code, ideas, and notes.\n"
+    )
+
+    def _resolve_snippet(self, topic: str) -> tuple:
+        """Returns (code_or_text, topic_description)"""
+        t = topic.lower().strip()
+        if any(k in t for k in ["palindrome", "palindrom"]):
+            return self.PALINDROME_CODE, "palindrome code"
+        if any(k in t for k in ["hello world", "helloworld", "hello-world"]):
+            return self.HELLO_WORLD_CODE, "hello world code"
+        if any(k in t for k in ["fibonacci", "fibonaci"]):
+            return self.FIBONACCI_CODE, "fibonacci code"
+        if any(k in t for k in ["factorial"]):
+            return self.FACTORIAL_CODE, "factorial code"
+        if any(k in t for k in ["something", "anything", "some text", "a note", "sample note", "notes"]):
+            return self.SAMPLE_NOTE, "sample notes"
+
+        clean_text = re.sub(r"^(a\s+)?(note|message|memo|text|sentence|comment)\s+(saying|that\s+says)?\s*", "", topic, flags=re.I).strip()
+        if clean_text:
+            clean_text = clean_text[0].upper() + clean_text[1:]
+            return clean_text, "your text"
+        return self.SAMPLE_NOTE, "notes"
+
+    def _match_compound_multistep(self, raw_lower: str, user_instruction: str) -> Optional[ActionPlan]:
+        """
+        Matches multi-step compound desktop workflows that do not require visual grounding:
+        e.g.
+          - 'open notepad take new file and write palindrome code'
+          - 'open notepad and write palindrome code'
+          - 'open notepad create new file and write hello world'
+          - 'take new file and write palindrome code'
+          - 'write palindrome code'
+        """
+        norm = self.normalize_text(user_instruction)
+        cleaned = norm.replace("note pad", "notepad").replace("notebook", "notepad")
+
+        # 1. Pattern: Open [App] + [Take New File] + Write [Topic]
+        compound_app_match = re.search(
+            r"^(?:open|launch|start)\s+(notepad|code|vscode|vs\s*code|text\s*editor|word)\s*"
+            r"(?:and|,|then)?\s*(?:take|create|make|open)?\s*(?:a\s+)?(?:new\s+)?(file|document|doc|note|pile|tab)?\s*"
+            r"(?:and|,|then|to)?\s*(?:write|type|insert|put|generate)\s+(?:something\s+into\s+that|something\s+in\s+it|something|.+?)$",
+            cleaned,
+            re.I
+        )
+        if not compound_app_match:
+            compound_app_match = re.search(
+                r"^(?:open|launch|start)\s+(notepad|code|vscode|vs\s*code|text\s*editor|word)\b.*?\b(?:write|type|put)\s+(.+)$",
+                cleaned,
+                re.I
+            )
+
+        if compound_app_match:
+            app_raw = compound_app_match.group(1).lower()
+            app_cmd = "notepad" if ("not" in app_raw or "text" in app_raw) else ("code" if "code" in app_raw else app_raw)
+            app_name = "Notepad" if app_cmd == "notepad" else app_cmd.title()
+
+            full_match_text = compound_app_match.group(0)
+            write_part_match = re.search(r"\b(?:write|type|put|insert|generate)\s+(.+)$", full_match_text, re.I)
+            topic_str = write_part_match.group(1) if write_part_match else "something"
+            topic_str = re.sub(r"\b(into\s+that|in\s+it|in\s+that|into\s+it|there)\b", "", topic_str, flags=re.I).strip()
+
+            snippet, desc = self._resolve_snippet(topic_str)
+            wants_new_file = bool(re.search(r"\b(new\s+(file|document|doc|note|pile|tab)|take\s+(a\s+)?(new\s+)?file)\b", cleaned, re.I))
+
+            actions = [
+                ActionStep(action=ActionType.LAUNCH, text=app_cmd, reason=f"Launch {app_name}"),
+                ActionStep(action=ActionType.WAIT, duration=1.0, reason=f"Wait for {app_name} to open and take focus")
+            ]
+
+            if wants_new_file:
+                actions.append(ActionStep(action=ActionType.HOTKEY, keys=["ctrl", "n"], reason=f"Create new file in {app_name}"))
+                actions.append(ActionStep(action=ActionType.WAIT, duration=0.4, reason="Wait for new file editor tab"))
+
+            actions.append(ActionStep(action=ActionType.TYPE, text=snippet, reason=f"Write {desc} into {app_name}"))
+
+            if wants_new_file:
+                answer = f"Opening {app_name}, creating a new file, and writing {desc}."
+            else:
+                answer = f"Opening {app_name} and writing {desc}."
+
+            logger.info(f"DirectActionFastPath -> Matched compound app workflow: {answer} ({len(actions)} steps)")
+            return ActionPlan(
+                type="action",
+                thought=f"Compound workflow: Launch {app_name}, optional new file, and write {desc}.",
+                answer=answer,
+                actions=actions
+            )
+
+        # 2. Pattern: In current editor: "take new file and write [topic]" / "create new file and write [topic]"
+        editor_new_write = re.search(
+            r"^(?:take|create|make|open)?\s*(?:a\s+)?new\s+(?:file|document|doc|note|pile|tab)\s*(?:and|,|then|to)?\s*(?:write|type|insert|put|generate)\s+(.+)$",
+            cleaned,
+            re.I
+        )
+        if editor_new_write:
+            topic_str = editor_new_write.group(1).strip()
+            topic_str = re.sub(r"\b(into\s+that|in\s+it|in\s+that|into\s+it|there)\b", "", topic_str, flags=re.I).strip()
+            snippet, desc = self._resolve_snippet(topic_str)
+            actions = [
+                ActionStep(action=ActionType.HOTKEY, keys=["ctrl", "n"], reason="Create new file"),
+                ActionStep(action=ActionType.WAIT, duration=0.4, reason="Wait for new file editor tab"),
+                ActionStep(action=ActionType.TYPE, text=snippet, reason=f"Write {desc}")
+            ]
+            answer = f"Creating a new file and writing {desc}."
+            logger.info(f"DirectActionFastPath -> Matched new file & write: {answer}")
+            return ActionPlan(
+                type="action",
+                thought=f"New file and write {desc}.",
+                answer=answer,
+                actions=actions
+            )
+
+        # 3. Pattern: Direct write into current focus: "write palindrome code" / "write hello world"
+        direct_write = re.search(
+            r"^(?:write|type|insert|generate)\s+(palindrome\s+code|palindrome\s+program|palindrome\s+function|palindrome|hello\s+world\s+code|hello\s+world|fibonacci\s+code|fibonacci|factorial\s+code|factorial)$",
+            cleaned,
+            re.I
+        )
+        if direct_write:
+            topic_str = direct_write.group(1).strip()
+            snippet, desc = self._resolve_snippet(topic_str)
+            actions = [
+                ActionStep(action=ActionType.TYPE, text=snippet, reason=f"Write {desc}")
+            ]
+            answer = f"Writing {desc}."
+            logger.info(f"DirectActionFastPath -> Matched direct code write: {answer}")
+            return ActionPlan(
+                type="action",
+                thought=f"Write {desc} into active document.",
+                answer=answer,
+                actions=actions
+            )
+
+        return None
+
     def normalize_text(self, text: str) -> str:
         """Strips punctuation and polite conversational fillers to isolate core command."""
         cleaned = text.lower().strip()
@@ -76,6 +250,8 @@ class DirectActionFastPath:
         # Phonetic cleanups for common desktop voice commands
         cleaned = re.sub(r"\bnot\s*paid\b", "notepad", cleaned)
         cleaned = re.sub(r"\bnot\s*prid\b", "notepad", cleaned)
+        cleaned = re.sub(r"\bnotebook\b", "notepad", cleaned)
+        cleaned = re.sub(r"\bsomhing\b", "something", cleaned)
         cleaned = re.sub(r"\bnew\s*pile\b", "new file", cleaned)
         cleaned = re.sub(r"\btake\s*a\s*new\s*pile\b", "take a new file", cleaned)
 
@@ -110,6 +286,11 @@ class DirectActionFastPath:
             return None
 
         raw_lower = user_instruction.lower().strip()
+
+        # 0. Check compound multi-step non-visual workflows (e.g. open notepad take new file and write palindrome code)
+        compound_plan = self._match_compound_multistep(raw_lower, user_instruction)
+        if compound_plan:
+            return compound_plan
 
         # 1. Negative check: if visual keywords exist, immediately fall through to Vision Planner
         # e.g., "click search bar", "find the first video", "type python in search"

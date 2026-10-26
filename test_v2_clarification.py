@@ -76,18 +76,18 @@ class TestClarification(unittest.TestCase):
 
         # 480/1000 * 1366 = 655
         self.assertEqual(opt1_target.abs_x, 655)
-        # 70/1000 * 1366 = 95 (isotropic)
-        self.assertEqual(opt1_target.abs_y, 95)
+        # 70/1000 * 768 = 53
+        self.assertEqual(opt1_target.abs_y, 53)
 
         # 410/1000 * 1366 = 560
         self.assertEqual(opt2_target.abs_x, 560)
-        # 540/1000 * 1366 = 737 (isotropic, clamped to 768)
-        self.assertEqual(opt2_target.abs_y, 737)
+        # 540/1000 * 768 = 414
+        self.assertEqual(opt2_target.abs_y, 414)
 
     def test_context_resolve_by_keyword(self):
         ctx = AgentContext()
-        target_yt = ActionTarget(abs_x=655, abs_y=95, description="YouTube search at the top")
-        target_tb = ActionTarget(abs_x=560, abs_y=737, description="Windows Taskbar search at the bottom")
+        target_yt = ActionTarget(abs_x=655, abs_y=53, description="YouTube search at the top")
+        target_tb = ActionTarget(abs_x=560, abs_y=414, description="Windows Taskbar search at the bottom")
 
         options = [
             {"id": 1, "description": "YouTube search at the top", "target": target_yt},

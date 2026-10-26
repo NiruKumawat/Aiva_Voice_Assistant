@@ -34,22 +34,42 @@ class ConfirmationManager:
         if step.sensitive:
             return True
 
-        # PRESS_KEY, SCROLL, MOVE, WAIT, SCREENSHOT are never destructive on their own
+        # PRESS_KEY, SCROLL, MOVE, WAIT, SCREENSHOT, LAUNCH, FINISH are never destructive on their own
         if step.action in (ActionType.PRESS_KEY, ActionType.SCROLL, ActionType.MOVE,
-                           ActionType.WAIT, ActionType.SCREENSHOT, ActionType.FINISH):
+                           ActionType.WAIT, ActionType.SCREENSHOT, ActionType.FINISH, ActionType.LAUNCH):
             return False
 
-        # Check description and typed text only (NOT step.reason — that's AI internal reasoning)
-        desc = ""
+        # 1. Target description check (Buttons / Links like "Delete Account", "Submit Payment")
         if step.target and step.target.description:
-            desc += " " + step.target.description.lower()
-        if step.text:
-            desc += " " + step.text.lower()
+            target_desc = step.target.description.lower()
+            for kw in SENSITIVE_KEYWORDS:
+                if re.search(r'\b' + re.escape(kw) + r'\b', target_desc):
+                    logger.info(f"Action flagged as sensitive due to keyword: '{kw}'")
+                    return True
 
-        for kw in SENSITIVE_KEYWORDS:
-            if re.search(r'\b' + re.escape(kw) + r'\b', desc) or kw in desc:
-                logger.info(f"Action flagged as sensitive due to keyword: '{kw}'")
-                return True
+        # 2. Typed text check (passwords, credentials, destructive shell commands)
+        if step.text:
+            text_lower = step.text.lower()
+            # Explicit credential keywords always require confirmation / masking
+            cred_keywords = ["password", "secret_key", "credential", "private_key", "credit card", "two-factor", "api_key"]
+            for kw in cred_keywords:
+                if kw in text_lower:
+                    logger.info(f"Action flagged as sensitive due to keyword: '{kw}'")
+                    return True
+
+            # Destructive terminal/database command keywords
+            destructive_cmds = [r"\brm\s+-rf\b", r"\bdrop\s+database\b", r"\bdrop\s+table\b", r"\bformat\s+[a-z]:\b", r"\bdel\s+/[fsq]\b"]
+            for cmd_pat in destructive_cmds:
+                if re.search(cmd_pat, text_lower):
+                    logger.info(f"Action flagged as sensitive due to destructive command: '{cmd_pat}'")
+                    return True
+
+            # For short phrases (< 60 chars) that are not multiline code: check general sensitive keywords
+            if "\n" not in step.text and len(step.text.strip()) < 60:
+                for kw in SENSITIVE_KEYWORDS:
+                    if re.search(r'\b' + re.escape(kw) + r'\b', text_lower):
+                        logger.info(f"Action flagged as sensitive due to keyword: '{kw}'")
+                        return True
 
         return False
 

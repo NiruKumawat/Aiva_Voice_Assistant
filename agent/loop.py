@@ -64,8 +64,12 @@ class AgentLoop:
                 # If there was a pending clarification, user moved on with a direct action
                 self.context.clear_clarification()
                 logger.info(f"AgentLoop -> Fast-path matched direct action: {fast_plan.actions[0].action}")
-                self.status_cb(f"Executing: {fast_plan.actions[0].action.value}...")
-                for step in fast_plan.actions:
+                for step_idx, step in enumerate(fast_plan.actions):
+                    if self.safety.emergency_stop.is_stop_requested():
+                        self.status_cb("Stopped")
+                        return "Action stopped by user."
+                    desc = step.target.description if step.target and step.target.description else (step.reason or step.action.value)
+                    self.status_cb(f"Executing: {desc}...")
                     self.executor.execute_step(step)
                     self.context.record_action(step, "")
                 self.is_running = False
@@ -197,14 +201,15 @@ class AgentLoop:
         """Iterates through action steps, validating and verifying each step."""
         current_screen = initial_screen
         last_explanation = ""
+        current_expected_window = initial_screen.window_title
 
         for step_idx, step in enumerate(plan.actions):
             if self.safety.emergency_stop.is_stop_requested():
                 self.status_cb("Stopped")
                 return "Action stopped by user."
 
-            # Safety validation
-            is_valid, err_msg = self.safety.validate_step(step, initial_screen.window_title)
+            # Safety validation against current expected window
+            is_valid, err_msg = self.safety.validate_step(step, current_expected_window)
             if not is_valid:
                 logger.warning(f"AgentLoop -> Step {step_idx} rejected: {err_msg}")
                 self.status_cb("Stopped")
@@ -215,6 +220,18 @@ class AgentLoop:
             self.status_cb(f"Executing: {desc}")
             self.executor.execute_step(step)
             self.context.record_action(step, current_screen.window_title)
+
+            # If this was a LAUNCH action, allow the new application window to appear and update expectation
+            if step.action == ActionType.LAUNCH:
+                time.sleep(0.8)
+                try:
+                    from capture.window import get_active_window_info
+                    new_win = get_active_window_info()
+                    if new_win and new_win.get("title"):
+                        current_expected_window = new_win["title"]
+                        logger.info(f"AgentLoop -> Window focus transferred to launched app: '{current_expected_window}'")
+                except Exception as e:
+                    logger.debug(f"Could not update active window after launch: {e}")
 
             # Skip redundant 20s secondary Groq verification call if disabled
             if not ENABLE_ACTION_VERIFICATION:

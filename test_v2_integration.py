@@ -186,6 +186,35 @@ class TestV2Integration(unittest.TestCase):
         # Step 1 ran, but Step 2 was blocked by emergency stop!
         self.assertEqual(len(executed_steps), 1)
 
+    @patch("agent.loop.ENABLE_FAST_PATH", False)
+    @patch("agent.loop.capture_screen_detailed")
+    def test_multistep_reasoning_launch_and_type_success(self, mock_capture):
+        """Verifies multi-step workflow handles app launch window transition without aborting."""
+        mock_capture.return_value = self.mock_screen
+        agent = AgentLoop()
+
+        steps = [
+            ActionStep(action=ActionType.LAUNCH, text="notepad", reason="Launch Notepad"),
+            ActionStep(action=ActionType.WAIT, duration=0.1, reason="Wait for window"),
+            ActionStep(action=ActionType.HOTKEY, keys=["ctrl", "n"], reason="New file"),
+            ActionStep(action=ActionType.WAIT, duration=0.1, reason="Wait for tab"),
+            ActionStep(action=ActionType.TYPE, text="def is_palindrome(s): return s == s[::-1]", reason="Write palindrome code")
+        ]
+
+        agent.planner.generate_plan = MagicMock(return_value=ActionPlan(
+            type="action",
+            thought="Open Notepad and write palindrome code",
+            answer="Opening Notepad, creating a new file, and writing palindrome code.",
+            actions=steps
+        ))
+
+        executed_actions = []
+        agent.executor.execute_step = MagicMock(side_effect=lambda s: executed_actions.append(s.action))
+
+        result = agent.run_cycle("open notepad take new file and write palindrome code")
+        self.assertIn("palindrome", result.lower())
+        self.assertEqual(len(executed_actions), 5)
+        self.assertEqual(executed_actions, [ActionType.LAUNCH, ActionType.WAIT, ActionType.HOTKEY, ActionType.WAIT, ActionType.TYPE])
 
 
 if __name__ == "__main__":

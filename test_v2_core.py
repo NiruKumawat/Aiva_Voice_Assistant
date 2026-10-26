@@ -54,35 +54,39 @@ class TestV2Core(unittest.TestCase):
             scaled_size=(1366, 768)
         )
 
+        # Center: (500, 500) -> (683, 384)
+        abs_x, abs_y = screen_1366.map_normalized_coords(500, 500)
+        self.assertEqual(abs_x, 683)
+        self.assertEqual(abs_y, 384)
+
         # Google Search Bar: model emits point (490, 300)
-        # Isotropic: both X and Y map via longest_dim = 1366
-        abs_x, abs_y = screen_1366.map_normalized_coords(490, 300, mode="vision")
-        # abs_x = int(0.490 * 1366) = 669, abs_y = int(0.300 * 1366) = 409
+        # abs_x = int(0.490 * 1366) = 669, abs_y = int(0.300 * 768) = 230
+        abs_x, abs_y = screen_1366.map_normalized_coords(490, 300)
         self.assertEqual(abs_x, 669)
-        self.assertEqual(abs_y, 409)
+        self.assertEqual(abs_y, 230)
 
         # GitHub shortcut icon: model emits point (252, 363)
-        abs_x, abs_y = screen_1366.map_normalized_coords(252, 363, mode="vision")
-        # abs_x = int(0.252 * 1366) = 344, abs_y = int(0.363 * 1366) = 495
+        # abs_x = int(0.252 * 1366) = 344, abs_y = int(0.363 * 768) = 278
+        abs_x, abs_y = screen_1366.map_normalized_coords(252, 363)
         self.assertEqual(abs_x, 344)
-        self.assertEqual(abs_y, 495)
+        self.assertEqual(abs_y, 278)
 
         # Box center for search bar: [230, 280, 770, 320]
-        # cx = 500, cy = 300 -> abs_x = int(0.500 * 1366) = 683, abs_y = int(0.300 * 1366) = 409
-        abs_x, abs_y = screen_1366.map_box_center([230, 280, 770, 320], mode="vision")
+        # cx = 500, cy = 300 -> abs_x = int(0.500 * 1366) = 683, abs_y = int(0.300 * 768) = 230
+        abs_x, abs_y = screen_1366.map_box_center([230, 280, 770, 320])
         self.assertEqual(abs_x, 683)
-        self.assertEqual(abs_y, 409)
+        self.assertEqual(abs_y, 230)
 
-        # Taskbar Chrome icon: model emits point (126, 555) - isotropic Y for bottom of screen
-        # 555/1000 * 1366 = 758 -> clamped to 768
-        abs_x, abs_y = screen_1366.map_normalized_coords(126, 555, mode="vision")
+        # Taskbar Chrome icon near bottom: model emits point (126, 950)
+        # 126/1000 * 1366 = 172, 950/1000 * 768 = 729
+        abs_x, abs_y = screen_1366.map_normalized_coords(126, 950)
         self.assertEqual(abs_x, 172)
-        self.assertEqual(abs_y, 758)
+        self.assertEqual(abs_y, 729)
 
-        # Taskbar File Explorer icon: model emits point (541, 556)
-        abs_x, abs_y = screen_1366.map_normalized_coords(541, 556, mode="vision")
+        # Taskbar File Explorer icon: model emits point (541, 950)
+        abs_x, abs_y = screen_1366.map_normalized_coords(541, 950)
         self.assertEqual(abs_x, 739)
-        self.assertEqual(abs_y, 759)
+        self.assertEqual(abs_y, 729)
 
     def test_safety_coordinate_validation(self):
         # Valid coordinate

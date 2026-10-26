@@ -57,8 +57,10 @@ class SafetyManager:
             return False, f"Maximum action limit ({MAX_ACTIONS_PER_REQUEST}) reached."
 
         # 3. Active window consistency check
-        if not validate_active_window(expected_window):
-            return False, f"Active window changed. Stopped to prevent acting on wrong application."
+        # LAUNCH actions start new processes from any context, and WAIT actions are passive pauses
+        if step.action not in [ActionType.LAUNCH, ActionType.WAIT] and expected_window:
+            if not validate_active_window(expected_window):
+                return False, f"Active window changed. Stopped to prevent acting on wrong application."
 
         # 4. Target coordinate validation
         if step.action in [ActionType.CLICK, ActionType.DOUBLE_CLICK, ActionType.RIGHT_CLICK, ActionType.MOVE]:

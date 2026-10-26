@@ -29,6 +29,9 @@ class ComputerController:
     def type_text(self, text: str, interval: float = 0.03, is_sensitive: bool = False):
         self.keyboard.type_text(text, interval=interval, is_sensitive=is_sensitive)
 
+    def paste_text(self, text: str):
+        self.keyboard.paste_text(text)
+
     def press(self, key: str):
         self.keyboard.press_key(key)
 

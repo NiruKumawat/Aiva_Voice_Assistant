@@ -144,6 +144,7 @@ class ActionExecutor:
                 cmd_to_run = aliases.get(clean_target.lower(), clean_target)
                 try:
                     subprocess.Popen(["cmd", "/c", "start", "", cmd_to_run], shell=False)
+                    time.sleep(0.5)
                 except Exception as e:
                     logger.error(f"Executor -> Failed to launch {clean_target} ({cmd_to_run}): {e}")
 
